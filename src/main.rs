@@ -24,7 +24,10 @@ fn main() {
         adapters.into_iter().nth(0).expect("Can't find a ble adapter !")
     };
 
-    adapter.start_scan().unwrap();
+    if adapter.start_scan().is_err() {
+        println!("Please start your bluetooth adapter ! (in action center on Windows)");
+        exit(-1);
+    }
 
     let receiver = adapter.event_receiver().unwrap();
     let time = std::time::Instant::now();
@@ -67,6 +70,24 @@ fn main() {
 
     let device = adapter.peripheral(target).unwrap();
     device.connect().unwrap();
-    device.discover_characteristics().unwrap().iter().for_each(|it| println!("{}", it.uuid));
-    device.disconnect();
+    println!("Device : {} | TX Power : {} dBm", device.address(), device.properties().tx_power_level.unwrap_or(-1));
+    for it in device.discover_characteristics().unwrap().iter() {
+        print!("{}", it.uuid);
+        let can_read = (it.properties & CharPropFlags::READ) == CharPropFlags::READ;
+        let can_write = (it.properties & CharPropFlags::WRITE) == CharPropFlags::WRITE;
+        print!("  {} ", String::with_capacity(2) + if can_read { "r" } else { "-" } + if can_write { "w" } else { "-" });
+        if can_read {
+            match device.read(it) {
+                Ok(bytes) => {
+                    for byte in bytes {
+                        print!(" {:02x}", byte);
+                    }
+                }
+                Err(btleplug::Error::NotSupported(msg)) => { print!(" Can't read : {}", msg) }
+                _ => print!("Another error")
+            }
+        }
+        println!();
+    };
+    device.disconnect().expect("Error when disconnecting !");
 }
