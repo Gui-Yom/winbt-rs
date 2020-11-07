@@ -8,3 +8,8 @@ edition = "2018"
 
 [dependencies]
 btleplug = "0.5.4"
+thiserror = "1.0.22"
+
+[dependencies.winapi]
+version = "0.3.9"
+features = ["bluetoothleapis", "bluetoothapis", "errhandlingapi", "minwinbase", "handleapi"]

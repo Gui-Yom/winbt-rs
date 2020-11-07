@@ -71,13 +71,13 @@ fn main() {
     let device = adapter.peripheral(target).unwrap();
     device.connect().unwrap();
     println!("Device : {} | TX Power : {} dBm", device.address(), device.properties().tx_power_level.unwrap_or(-1));
-    for it in device.discover_characteristics().unwrap().iter() {
+    for it in device.discover_characteristics().unwrap() {
         print!("{}", it.uuid);
         let can_read = (it.properties & CharPropFlags::READ) == CharPropFlags::READ;
         let can_write = (it.properties & CharPropFlags::WRITE) == CharPropFlags::WRITE;
         print!("  {} ", String::with_capacity(2) + if can_read { "r" } else { "-" } + if can_write { "w" } else { "-" });
         if can_read {
-            match device.read(it) {
+            match device.read(&it) {
                 Ok(bytes) => {
                     for byte in bytes {
                         print!(" {:02x}", byte);
