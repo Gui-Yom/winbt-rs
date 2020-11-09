@@ -7,34 +7,51 @@ use winapi::um::handleapi::CloseHandle;
 use winapi::um::minwinbase::SYSTEMTIME;
 use winapi::um::winnt::HANDLE;
 
-pub fn find_radios() -> Result<Vec<HANDLE>> {
-    let mut item: HANDLE = null_mut();
-    let mut items: Vec<HANDLE> = Vec::new();
-    unsafe {
-        let find: HBLUETOOTH_RADIO_FIND = BluetoothFindFirstRadio(&BLUETOOTH_FIND_RADIO_PARAMS {
-            dwSize: 4
-        }, &mut item);
-        if find == null_mut() {
-            let err = Error::from_code(errhandlingapi::GetLastError());
-            return match err {
-                Error::NoMoreItems => Ok(vec![]),
-                err => Err(err)
-            };
-        }
-        items.push(item);
-        while BluetoothFindNextRadio(find, &mut item) > 0 {
-            items.push(item)
-        }
-        BluetoothFindRadioClose(find);
-    }
-    Ok(items)
+struct Radio {
+    handle: HANDLE
 }
 
-pub fn close_radio(handle: HANDLE) {
-    unsafe {
-        CloseHandle(handle);
+impl Radio {
+    fn new(handle: HANDLE) -> Self {
+        Radio {
+            handle
+        }
+    }
+
+    fn find() -> Result<Vec<Radio>> {
+        let mut item: HANDLE = null_mut();
+        let mut items: Vec<Radio> = Vec::new();
+        unsafe {
+            let find: HBLUETOOTH_RADIO_FIND = BluetoothFindFirstRadio(&BLUETOOTH_FIND_RADIO_PARAMS {
+                dwSize: 4
+            }, &mut item);
+            if find == null_mut() {
+                let err = Error::from_code(errhandlingapi::GetLastError());
+                return match err {
+                    Error::NoMoreItems => Ok(vec![]),
+                    err => Err(err)
+                };
+            }
+            items.push(Radio::new(item));
+            while BluetoothFindNextRadio(find, &mut item) > 0 {
+                items.push(Radio::new(item))
+            }
+            BluetoothFindRadioClose(find);
+        }
+        Ok(items)
+    }
+
+    fn find_devices(&self) {}
+}
+
+// So that the handle is automatically freed when the struct goes out of scope.
+impl Drop for Radio {
+    fn drop(&mut self) {
+        unsafe { CloseHandle(self.handle); }
     }
 }
+
+
 /*
 pub fn find_devices(radio: HANDLE) -> Result<Vec<(HANDLE, BLUETOOTH_DEVICE_INFO)>> {
     let mut devices: Vec<(HANDLE, BLUETOOTH_DEVICE_INFO)> = Vec::new();
