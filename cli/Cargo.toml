@@ -1,0 +1,14 @@
+[package]
+name = "bt_cli"
+version = "0.1.0"
+authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.btwin]
+path = ".."
+
+# I'll remove this when the base library will have support for ble
+[dependencies.btleplug]
+version = "~0.5.4"

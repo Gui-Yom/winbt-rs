@@ -5,11 +5,15 @@ use std::time::{Duration, Instant};
 
 use btleplug::api::{BDAddr, Central, CentralEvent, CharPropFlags, Peripheral};
 use btleplug::winrtble::manager::Manager;
+use btwin::btleplug;
+use btwin::btwinapi;
 
 static _VENDOR: &str = "Makeblock";
 static _NAME: &str = "Makeblock_LE001b1067c8af";
 static ADDR: &str = "00:1B:10:67:C8:AF";
 static SEARCH_TIME: u128 = 1500;
+
+// TODO cli here
 
 fn main() {
     let target = BDAddr::from_str(ADDR).unwrap();
