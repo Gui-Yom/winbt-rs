@@ -6,8 +6,9 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-#[dependencies.btwin]
-#path = ".."
+[dependencies.btwin]
+path = ".."
+features = ["winapi"]
 
 # I'll remove this when the base library will have support for ble
 [dependencies.btleplug]

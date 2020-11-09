@@ -1,13 +1,34 @@
+use std::ffi::{OsStr, OsString};
+use std::mem::size_of;
+
 use thiserror::Error;
 use winapi::_core::ptr::null_mut;
 use winapi::shared::winerror;
-use winapi::um::bluetoothapis::{BLUETOOTH_DEVICE_INFO, BLUETOOTH_DEVICE_SEARCH_PARAMS, BLUETOOTH_FIND_RADIO_PARAMS, BluetoothFindFirstDevice, BluetoothFindFirstRadio, BluetoothFindNextDevice, BluetoothFindNextRadio, BluetoothFindRadioClose, HBLUETOOTH_DEVICE_FIND, HBLUETOOTH_RADIO_FIND};
+use winapi::um::bluetoothapis::{
+    BLUETOOTH_COD_PAIRS,
+    BLUETOOTH_DEVICE_INFO,
+    BLUETOOTH_DEVICE_SEARCH_PARAMS,
+    BLUETOOTH_FIND_RADIO_PARAMS,
+    BLUETOOTH_NULL_ADDRESS,
+    BLUETOOTH_SELECT_DEVICE_PARAMS,
+    BluetoothFindDeviceClose,
+    BluetoothFindFirstDevice,
+    BluetoothFindFirstRadio,
+    BluetoothFindNextDevice,
+    BluetoothFindNextRadio,
+    BluetoothFindRadioClose,
+    BluetoothSelectDevices,
+    BluetoothSelectDevicesFree,
+    HBLUETOOTH_DEVICE_FIND,
+    HBLUETOOTH_RADIO_FIND};
 use winapi::um::errhandlingapi;
 use winapi::um::handleapi::CloseHandle;
 use winapi::um::minwinbase::SYSTEMTIME;
 use winapi::um::winnt::HANDLE;
 
-struct Radio {
+use crate::utils::{FromWide, ToWide};
+
+pub struct Radio {
     handle: HANDLE
 }
 
@@ -18,7 +39,7 @@ impl Radio {
         }
     }
 
-    fn find() -> Result<Vec<Radio>> {
+    pub fn find() -> Result<Vec<Radio>> {
         let mut item: HANDLE = null_mut();
         let mut items: Vec<Radio> = Vec::new();
         unsafe {
@@ -41,7 +62,35 @@ impl Radio {
         Ok(items)
     }
 
-    fn find_devices(&self) {}
+    pub fn find_devices(&self) -> Result<Vec<BtDevice>> {
+        let mut devices: Vec<BtDevice> = Vec::new();
+        unsafe {
+            let mut info: BLUETOOTH_DEVICE_INFO = new_device_info();
+            let first: HBLUETOOTH_DEVICE_FIND = BluetoothFindFirstDevice(&BLUETOOTH_DEVICE_SEARCH_PARAMS {
+                dwSize: 6 * 4 + 1 + 4,
+                fReturnAuthenticated: 0,
+                fReturnRemembered: 0,
+                fReturnUnknown: 0,
+                fReturnConnected: 0,
+                fIssueInquiry: 0,
+                cTimeoutMultiplier: 1,
+                hRadio: self.handle,
+            }, &mut info);
+            if first == null_mut() {
+                let err = Error::from_code(errhandlingapi::GetLastError());
+                return match err {
+                    Error::NoMoreItems => Ok(vec![]),
+                    err => Err(err)
+                };
+            }
+            devices.push(BtDevice::new(info));
+            while BluetoothFindNextDevice(first, &mut info) > 0 {
+                devices.push(BtDevice::new(info));
+            }
+            BluetoothFindDeviceClose(first);
+        }
+        Ok(devices)
+    }
 }
 
 // So that the handle is automatically freed when the struct goes out of scope.
@@ -51,50 +100,70 @@ impl Drop for Radio {
     }
 }
 
-
-/*
-pub fn find_devices(radio: HANDLE) -> Result<Vec<(HANDLE, BLUETOOTH_DEVICE_INFO)>> {
-    let mut devices: Vec<(HANDLE, BLUETOOTH_DEVICE_INFO)> = Vec::new();
-    unsafe {
-        let mut info: BLUETOOTH_DEVICE_INFO = BLUETOOTH_DEVICE_INFO {
-            dwSize: 6 * 4 + 2 * std::mem::size_of::<SYSTEMTIME>() + 248 * 2,
-            Address: 0,
-            ulClassofDevice: 0,
-            fConnected: 0,
-            fRemembered: 0,
-            fAuthenticated: 0,
-            stLastSeen: std::mem::zeroed(),
-            stLastUsed: std::mem::zeroed(),
-            szName: [0u16; 248],
-        };
-        let first: HBLUETOOTH_DEVICE_FIND = BluetoothFindFirstDevice(&BLUETOOTH_DEVICE_SEARCH_PARAMS {
-            dwSize: 6 * 4 + 1 + 4,
-            fReturnAuthenticated: false,
-            fReturnRemembered: false,
-            fReturnUnknown: false,
-            fReturnConnected: false,
-            fIssueInquiry: false,
-            cTimeoutMultiplier: 1,
-            hRadio: radio,
-        }, &mut info);
-        if first == null_mut() {
-            let err = Error::from_code(errhandlingapi::GetLastError());
-            return match err {
-                Error::NoMoreItems => Ok(vec![]),
-                err => Err(err)
-            };
-        }
-        devices.push((first, info));
-        let device =
-            while BluetoothFindNextDevice(find, &mut item) > 0 {
-                devices.push(item)
-            };
-        BluetoothFindRadioClose(find);
-    }
-    Ok(devices)
+pub struct BtDevice {
+    pub info: BLUETOOTH_DEVICE_INFO,
 }
 
- */
+impl BtDevice {
+    fn new(info: BLUETOOTH_DEVICE_INFO) -> Self {
+        BtDevice {
+            info,
+        }
+    }
+
+    pub fn name(&self) -> String {
+        OsString::from_wide(&self.info.szName).into_string().unwrap()
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub fn select_device() -> Result<Option<BtDevice>> {
+    use std::os::windows::ffi::OsStringExt;
+    let mut devices = vec![new_device_info()];
+    let mut params = BLUETOOTH_SELECT_DEVICE_PARAMS {
+        dwSize: size_of::<BLUETOOTH_SELECT_DEVICE_PARAMS>() as u32,
+        cNumOfClasses: 0,
+        prgClassOfDevices: null_mut(),
+        pszInfo: OsString::from("Robot").to_wide().as_mut_ptr(),
+        hwndParent: null_mut(),
+        fForceAuthentication: 0,
+        fShowAuthenticated: 0,
+        fShowRemembered: 0,
+        fShowUnknown: 1,
+        fAddNewDeviceWizard: 0,
+        fSkipServicesPage: 1,
+        pfnDeviceCallback: None,
+        pvParam: null_mut(),
+        cNumDevices: 1,
+        pDevices: devices.as_mut_ptr(),
+    };
+    // TODO handle error
+
+    unsafe {
+        if BluetoothSelectDevices(&mut params) > 0 {
+            let device = BtDevice::new(devices[0]);
+            BluetoothSelectDevicesFree(&mut params);
+            return Ok(Some(device));
+        }
+    }
+
+    Ok(None)
+}
+
+fn new_device_info() -> BLUETOOTH_DEVICE_INFO {
+    println!("expected {} actual {}", 4 + 8 + 4 + 4 + 4 + size_of::<SYSTEMTIME>() * 2 + 248 * 2, size_of::<BLUETOOTH_DEVICE_INFO>());
+    BLUETOOTH_DEVICE_INFO {
+        dwSize: (4 + 8 + 4 + 4 + 4 + size_of::<SYSTEMTIME>() * 2 + 248 * 2) as u32,
+        Address: BLUETOOTH_NULL_ADDRESS,
+        ulClassofDevice: 0,
+        fConnected: 0,
+        fRemembered: 0,
+        fAuthenticated: 0,
+        stLastSeen: SYSTEMTIME::default(),
+        stLastUsed: SYSTEMTIME::default(),
+        szName: [0u16; 248],
+    }
+}
 
 #[derive(Error, Debug)]
 pub enum Error {

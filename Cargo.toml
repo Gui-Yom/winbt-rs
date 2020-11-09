@@ -19,7 +19,7 @@ version = "~1.0.22"
 [dependencies.winapi]
 version = "~0.3.9"
 optional = true
-features = ["bluetoothapis", "errhandlingapi", "minwinbase", "handleapi"]
+features = ["impl-debug", "impl-default", "bluetoothapis", "errhandlingapi", "minwinbase", "handleapi"]
 
 [dependencies.winrt]
 version = "~0.7.2"

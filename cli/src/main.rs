@@ -1,3 +1,4 @@
+use std::ffi::{OsStr, OsString};
 use std::process::exit;
 use std::str::FromStr;
 use std::thread::sleep;
@@ -5,8 +6,8 @@ use std::time::{Duration, Instant};
 
 use btleplug::api::{BDAddr, Central, CentralEvent, CharPropFlags, Peripheral};
 use btleplug::winrtble::manager::Manager;
-use btwin::btleplug;
-use btwin::btwinapi;
+
+use btwin::btwinapi::select_device;
 
 static _VENDOR: &str = "Makeblock";
 static _NAME: &str = "Makeblock_LE001b1067c8af";
@@ -16,6 +17,14 @@ static SEARCH_TIME: u128 = 1500;
 // TODO cli here
 
 fn main() {
+    {
+        let device = select_device().unwrap();
+        if device.is_some() {
+            println!("{}", device.unwrap().name());
+        }
+    }
+    exit(0);
+
     let target = BDAddr::from_str(ADDR).unwrap();
     let mut found = false;
 
