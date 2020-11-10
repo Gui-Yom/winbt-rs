@@ -1,4 +1,3 @@
-use std::ffi::{OsStr, OsString};
 use std::process::exit;
 use std::str::FromStr;
 use std::thread::sleep;
@@ -17,6 +16,10 @@ static SEARCH_TIME: u128 = 1500;
 // TODO cli here
 
 fn main() {
+    {
+        btwin::btwinrt::list_devices().expect("err");
+    }
+    exit(0);
     {
         let device = select_device().unwrap();
         if device.is_some() {

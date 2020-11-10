@@ -1,11 +1,10 @@
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::mem::size_of;
 
 use thiserror::Error;
 use winapi::_core::ptr::null_mut;
 use winapi::shared::winerror;
 use winapi::um::bluetoothapis::{
-    BLUETOOTH_COD_PAIRS,
     BLUETOOTH_DEVICE_INFO,
     BLUETOOTH_DEVICE_SEARCH_PARAMS,
     BLUETOOTH_FIND_RADIO_PARAMS,

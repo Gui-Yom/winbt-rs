@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies.btwin]
 path = ".."
-features = ["winapi"]
+features = ["winapi", "winrt"]
 
 # I'll remove this when the base library will have support for ble
 [dependencies.btleplug]

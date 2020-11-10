@@ -22,5 +22,11 @@ optional = true
 features = ["impl-debug", "impl-default", "bluetoothapis", "errhandlingapi", "minwinbase", "handleapi"]
 
 [dependencies.winrt]
-version = "~0.7.2"
 optional = true
+git = "https://github.com/microsoft/winrt-rs"
+
+[build-dependencies]
+winrt = { git = "https://github.com/microsoft/winrt-rs" }
+
+[package.metadata.winrt.dependencies]
+"Microsoft.Windows.SDK.Contracts" = "10.0.19041.1"
