@@ -1,10 +1,12 @@
 #[cfg(feature = "winapi")]
-pub mod btwinapi;
+mod winapi;
 #[cfg(feature = "winapi-ble")]
-pub mod btlewinapi;
+mod winapible;
 #[cfg(feature = "winrt")]
-pub mod btwinrt;
+mod winrt;
 #[cfg(feature = "winrt-ble")]
-pub mod btlewinrt;
+mod winrtble;
+
+pub use crate::winapi::*;
 
 mod utils;

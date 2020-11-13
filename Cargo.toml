@@ -1,5 +1,5 @@
 [package]
-name = "btwin"
+name = "winbt"
 version = "0.1.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
@@ -10,8 +10,9 @@ edition = "2018"
 members = ["cli"]
 
 [features]
-winapi-ble = ["winapi", "winapi/bluetoothleapis"]
-winrt-ble = ["winrt"]
+default = ["winapi"]
+"winapi-ble" = ["winapi", "winapi/bluetoothleapis", "winapi/bthledef"]
+"winrt-ble" = ["winrt"]
 
 [dependencies.thiserror]
 version = "~1.0.22"
@@ -19,7 +20,19 @@ version = "~1.0.22"
 [dependencies.winapi]
 version = "~0.3.9"
 optional = true
-features = ["impl-debug", "impl-default", "bluetoothapis", "errhandlingapi", "minwinbase", "handleapi"]
+features = [
+    "std",
+    "impl-debug",
+    "impl-default",
+    "guiddef",
+    "minwinbase",
+    "winbase",
+    "winerror",
+    "ws2def",
+    "errhandlingapi",
+    "handleapi",
+    "bluetoothapis"
+]
 
 [dependencies.winrt]
 optional = true

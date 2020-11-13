@@ -5,21 +5,12 @@ use thiserror::Error;
 use winapi::_core::ptr::null_mut;
 use winapi::shared::winerror;
 use winapi::um::bluetoothapis::{
-    BLUETOOTH_DEVICE_INFO,
-    BLUETOOTH_DEVICE_SEARCH_PARAMS,
-    BLUETOOTH_FIND_RADIO_PARAMS,
-    BLUETOOTH_NULL_ADDRESS,
-    BLUETOOTH_SELECT_DEVICE_PARAMS,
-    BluetoothFindDeviceClose,
-    BluetoothFindFirstDevice,
-    BluetoothFindFirstRadio,
-    BluetoothFindNextDevice,
-    BluetoothFindNextRadio,
-    BluetoothFindRadioClose,
-    BluetoothSelectDevices,
-    BluetoothSelectDevicesFree,
-    HBLUETOOTH_DEVICE_FIND,
-    HBLUETOOTH_RADIO_FIND};
+    BluetoothFindDeviceClose, BluetoothFindFirstDevice, BluetoothFindFirstRadio,
+    BluetoothFindNextDevice, BluetoothFindNextRadio, BluetoothFindRadioClose,
+    BluetoothSelectDevices, BluetoothSelectDevicesFree, BLUETOOTH_DEVICE_INFO,
+    BLUETOOTH_DEVICE_SEARCH_PARAMS, BLUETOOTH_FIND_RADIO_PARAMS, BLUETOOTH_NULL_ADDRESS,
+    BLUETOOTH_SELECT_DEVICE_PARAMS, HBLUETOOTH_DEVICE_FIND, HBLUETOOTH_RADIO_FIND,
+};
 use winapi::um::errhandlingapi;
 use winapi::um::handleapi::CloseHandle;
 use winapi::um::minwinbase::SYSTEMTIME;
@@ -28,28 +19,25 @@ use winapi::um::winnt::HANDLE;
 use crate::utils::{FromWide, ToWide};
 
 pub struct Radio {
-    handle: HANDLE
+    handle: HANDLE,
 }
 
 impl Radio {
     fn new(handle: HANDLE) -> Self {
-        Radio {
-            handle
-        }
+        Radio { handle }
     }
 
     pub fn find() -> Result<Vec<Radio>> {
         let mut item: HANDLE = null_mut();
         let mut items: Vec<Radio> = Vec::new();
         unsafe {
-            let find: HBLUETOOTH_RADIO_FIND = BluetoothFindFirstRadio(&BLUETOOTH_FIND_RADIO_PARAMS {
-                dwSize: 4
-            }, &mut item);
+            let find: HBLUETOOTH_RADIO_FIND =
+                BluetoothFindFirstRadio(&BLUETOOTH_FIND_RADIO_PARAMS { dwSize: 4 }, &mut item);
             if find == null_mut() {
                 let err = Error::from_code(errhandlingapi::GetLastError());
                 return match err {
                     Error::NoMoreItems => Ok(vec![]),
-                    err => Err(err)
+                    err => Err(err),
                 };
             }
             items.push(Radio::new(item));
@@ -65,21 +53,24 @@ impl Radio {
         let mut devices: Vec<BtDevice> = Vec::new();
         unsafe {
             let mut info: BLUETOOTH_DEVICE_INFO = new_device_info();
-            let first: HBLUETOOTH_DEVICE_FIND = BluetoothFindFirstDevice(&BLUETOOTH_DEVICE_SEARCH_PARAMS {
-                dwSize: 6 * 4 + 1 + 4,
-                fReturnAuthenticated: 0,
-                fReturnRemembered: 0,
-                fReturnUnknown: 0,
-                fReturnConnected: 0,
-                fIssueInquiry: 0,
-                cTimeoutMultiplier: 1,
-                hRadio: self.handle,
-            }, &mut info);
+            let first: HBLUETOOTH_DEVICE_FIND = BluetoothFindFirstDevice(
+                &BLUETOOTH_DEVICE_SEARCH_PARAMS {
+                    dwSize: 6 * 4 + 1 + 4,
+                    fReturnAuthenticated: 0,
+                    fReturnRemembered: 0,
+                    fReturnUnknown: 0,
+                    fReturnConnected: 0,
+                    fIssueInquiry: 0,
+                    cTimeoutMultiplier: 1,
+                    hRadio: self.handle,
+                },
+                &mut info,
+            );
             if first == null_mut() {
                 let err = Error::from_code(errhandlingapi::GetLastError());
                 return match err {
                     Error::NoMoreItems => Ok(vec![]),
-                    err => Err(err)
+                    err => Err(err),
                 };
             }
             devices.push(BtDevice::new(info));
@@ -95,7 +86,9 @@ impl Radio {
 // So that the handle is automatically freed when the struct goes out of scope.
 impl Drop for Radio {
     fn drop(&mut self) {
-        unsafe { CloseHandle(self.handle); }
+        unsafe {
+            CloseHandle(self.handle);
+        }
     }
 }
 
@@ -105,20 +98,29 @@ pub struct BtDevice {
 
 impl BtDevice {
     fn new(info: BLUETOOTH_DEVICE_INFO) -> Self {
-        BtDevice {
-            info,
-        }
+        BtDevice { info }
     }
 
     pub fn name(&self) -> String {
-        OsString::from_wide(&self.info.szName).into_string().unwrap()
+        OsString::from_wide(&self.info.szName)
+            .into_string()
+            .unwrap()
     }
 }
 
 #[cfg(target_os = "windows")]
 pub fn select_device() -> Result<Option<BtDevice>> {
-    use std::os::windows::ffi::OsStringExt;
     let mut devices = vec![new_device_info()];
+    /*
+    let mut params = BLUETOOTH_SELECT_DEVICE_PARAMS::default();
+    params.dwSize = size_of::<BLUETOOTH_SELECT_DEVICE_PARAMS>() as u32;
+    params.pszInfo = OsString::from("Robot").to_wide().as_mut_ptr();
+    params.fShowUnknown = 1;
+    params.fSkipServicesPage = 1;
+    params.pfnDeviceCallback = None;
+    params.cNumDevices = 1;
+    params.pDevices = devices.as_mut_ptr();
+    */
     let mut params = BLUETOOTH_SELECT_DEVICE_PARAMS {
         dwSize: size_of::<BLUETOOTH_SELECT_DEVICE_PARAMS>() as u32,
         cNumOfClasses: 0,
@@ -126,10 +128,10 @@ pub fn select_device() -> Result<Option<BtDevice>> {
         pszInfo: OsString::from("Robot").to_wide().as_mut_ptr(),
         hwndParent: null_mut(),
         fForceAuthentication: 0,
-        fShowAuthenticated: 0,
-        fShowRemembered: 0,
+        fShowAuthenticated: 1,
+        fShowRemembered: 1,
         fShowUnknown: 1,
-        fAddNewDeviceWizard: 0,
+        fAddNewDeviceWizard: 1,
         fSkipServicesPage: 1,
         pfnDeviceCallback: None,
         pvParam: null_mut(),
@@ -141,18 +143,18 @@ pub fn select_device() -> Result<Option<BtDevice>> {
     unsafe {
         if BluetoothSelectDevices(&mut params) > 0 {
             let device = BtDevice::new(devices[0]);
+            println!("{}", device.info.Address);
             BluetoothSelectDevicesFree(&mut params);
             return Ok(Some(device));
         }
     }
-
+    print!("None");
     Ok(None)
 }
 
 fn new_device_info() -> BLUETOOTH_DEVICE_INFO {
-    println!("expected {} actual {}", 4 + 8 + 4 + 4 + 4 + size_of::<SYSTEMTIME>() * 2 + 248 * 2, size_of::<BLUETOOTH_DEVICE_INFO>());
     BLUETOOTH_DEVICE_INFO {
-        dwSize: (4 + 8 + 4 + 4 + 4 + size_of::<SYSTEMTIME>() * 2 + 248 * 2) as u32,
+        dwSize: size_of::<BLUETOOTH_DEVICE_INFO>() as u32,
         Address: BLUETOOTH_NULL_ADDRESS,
         ulClassofDevice: 0,
         fConnected: 0,
@@ -164,6 +166,7 @@ fn new_device_info() -> BLUETOOTH_DEVICE_INFO {
     }
 }
 
+// For Win32 errors
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("ERROR_NO_MORE_ITEMS")]
@@ -189,7 +192,7 @@ impl Error {
             winerror::ERROR_INVALID_PARAMETER => Error::InvalidParameter,
             winerror::ERROR_REVISION_MISMATCH => Error::RevisionMismatch,
             winerror::ERROR_OUTOFMEMORY => Error::OutOfMemory,
-            _ => Error::Other(code)
+            _ => Error::Other(code),
         }
     }
 }
